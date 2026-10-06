@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """明日の天気を取得して通知する。Open-Meteo (APIキー不要) を使用。"""
+import argparse
+import datetime as dt
 import json
 import os
+import shutil
+import subprocess
+import sys
+import time
 import urllib.parse
 import urllib.request
 
@@ -74,7 +80,59 @@ def notify(message):
     return sent
 
 
-def main():
+def show_popup(message, title="明日の天気"):
+    """画面にポップアップを出す。tkinter が使えなければ OS 標準の通知にフォールバック。"""
+    try:
+        import tkinter
+        from tkinter import messagebox
+        root = tkinter.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        messagebox.showinfo(title, message, parent=root)
+        root.destroy()
+        return True
+    except Exception:
+        pass
+    try:
+        if sys.platform == "darwin":
+            esc = message.replace("\\", "\\\\").replace('"', '\\"')
+            subprocess.run(["osascript", "-e",
+                            f'display notification "{esc}" with title "{title}"'], check=True)
+            return True
+        if shutil.which("notify-send"):
+            subprocess.run(["notify-send", title, message], check=True)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def parse_time(text):
+    h, m = text.split(":")
+    return dt.time(int(h), int(m))
+
+
+def should_run(now, last_run_date, target):
+    """今日の指定時刻を過ぎていて、今日まだ実行していなければ True。
+    スリープ明けなど、時刻ぴったりに起きていなくても実行できる。"""
+    return last_run_date != now.date() and now.time() >= target
+
+
+def run_daemon(target, popup_message):
+    print(f"常駐中: 毎日 {target:%H:%M} (この PC のローカル時刻) に表示します。Ctrl+C で終了。")
+    last = None
+    while True:
+        now = dt.datetime.now()
+        if should_run(now, last, target):
+            last = now.date()  # 失敗しても同日に連打しない
+            try:
+                popup_message()
+            except Exception as e:
+                print(f"取得/表示に失敗: {e}", file=sys.stderr)
+        time.sleep(30)
+
+
+def build_message():
     # Actions では未設定の vars が空文字になるため `or` でデフォルトに落とす
     place = os.environ.get("PLACE_NAME") or "東京"
     data = fetch_forecast(
@@ -82,10 +140,31 @@ def main():
         os.environ.get("LONGITUDE") or "139.6917",
         os.environ.get("TIMEZONE") or "Asia/Tokyo",
     )
-    message = format_message(data, place)
-    print(message)
-    if not notify(message):
-        print("(通知先が未設定のため標準出力のみ)")
+    return format_message(data, place)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--popup", action="store_true", help="画面にポップアップも出す")
+    ap.add_argument("--daemon", action="store_true",
+                    help="常駐して毎日指定時刻にポップアップを出す")
+    ap.add_argument("--at", default="12:00", help="--daemon の表示時刻 HH:MM (default 12:00)")
+    args = ap.parse_args()
+
+    def once():
+        message = build_message()
+        print(message)
+        sent = notify(message)
+        if args.popup or args.daemon:
+            if not show_popup(message):
+                print("(ポップアップを表示できませんでした)", file=sys.stderr)
+        elif not sent:
+            print("(通知先が未設定のため標準出力のみ)")
+
+    if args.daemon:
+        run_daemon(parse_time(args.at), once)
+    else:
+        once()
 
 
 if __name__ == "__main__":

@@ -26,3 +26,24 @@
 ## 注意
 
 GitHub Actions の cron は混雑時に数分〜数十分遅れることがあります。
+
+## 画面にポップアップを出す（PC常駐モード）
+
+定刻になると、PCの画面に自動でポップアップが出ます。スマホ等への通知（上記）とは別で、併用できます。
+
+```sh
+python3 weather_notify.py --daemon            # 毎日 12:00（このPCのローカル時刻）
+python3 weather_notify.py --daemon --at 12:30 # 時刻変更
+python3 weather_notify.py --popup             # 今すぐ1回だけ表示して試す
+```
+
+- 表示は tkinter のダイアログ（最前面）。使えない環境では macOS の通知 / Linux の `notify-send` に切り替わります。
+  Linux で tkinter が無い場合は `sudo apt install python3-tk`。
+- 12時にスリープしていた場合は、復帰後に（その日まだなら）表示します。
+- 環境変数 `PLACE_NAME` / `LATITUDE` / `LONGITUDE` で場所を変えられます。
+
+### ログイン時に自動で起動する
+
+- **Windows**: `Win+R` → `shell:startup` を開き、`pythonw C:\path\to\weather_notify.py --daemon` を実行するショートカットを置く
+- **macOS**: システム設定 → 一般 → ログイン項目に、上記コマンドを実行するシェルスクリプト（`.command`）を追加
+- **Linux**: `~/.config/autostart/weather.desktop` に `Exec=python3 /path/to/weather_notify.py --daemon` を書く

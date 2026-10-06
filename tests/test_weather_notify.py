@@ -3,7 +3,9 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from weather_notify import format_message  # noqa: E402
+import datetime as dt
+
+from weather_notify import format_message, parse_time, should_run  # noqa: E402
 
 DATA = {"daily": {
     "time": ["2026-10-06", "2026-10-07"],
@@ -30,6 +32,22 @@ class FormatTest(unittest.TestCase):
     def test_null_precipitation(self):
         data = {"daily": {**DATA["daily"], "precipitation_probability_max": [0, None]}}
         self.assertIn("降水確率: -", format_message(data, "東京"))
+
+
+class ScheduleTest(unittest.TestCase):
+    T = parse_time("12:00")
+
+    def test_before_target(self):
+        self.assertFalse(should_run(dt.datetime(2026, 10, 6, 11, 59), None, self.T))
+
+    def test_at_target(self):
+        self.assertTrue(should_run(dt.datetime(2026, 10, 6, 12, 0), None, self.T))
+
+    def test_late_wake_still_runs(self):
+        self.assertTrue(should_run(dt.datetime(2026, 10, 6, 15, 0), dt.date(2026, 10, 5), self.T))
+
+    def test_once_per_day(self):
+        self.assertFalse(should_run(dt.datetime(2026, 10, 6, 12, 5), dt.date(2026, 10, 6), self.T))
 
 
 if __name__ == "__main__":
