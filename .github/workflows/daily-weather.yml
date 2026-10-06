@@ -1,0 +1,23 @@
+name: Daily weather
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 毎日 12:00 JST (= 03:00 UTC)
+  workflow_dispatch:       # 手動実行用
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python weather_notify.py
+        env:
+          PLACE_NAME: ${{ vars.PLACE_NAME }}
+          LATITUDE: ${{ vars.LATITUDE }}
+          LONGITUDE: ${{ vars.LONGITUDE }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
