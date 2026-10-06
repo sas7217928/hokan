@@ -53,7 +53,7 @@ def format_message(data, place):
         f"降水確率: {'-' if rain is None else f'{rain}%'}",
     ]
     if rain is not None and rain >= 50:
-        lines.append("☂ 傘を忘れずに!")
+        lines.append("傘を忘れずに!")
     return "\n".join(lines)
 
 
@@ -132,12 +132,12 @@ def run_daemon(target, popup_message):
         time.sleep(30)
 
 
-def build_message():
-    # Actions では未設定の vars が空文字になるため `or` でデフォルトに落とす
-    place = os.environ.get("PLACE_NAME") or "東京"
+def build_message(place=None, lat=None, lon=None):
+    # 引数 > 環境変数 > デフォルト。Actions では未設定の vars が空文字になるため `or` を使う
+    place = place or os.environ.get("PLACE_NAME") or "東京"
     data = fetch_forecast(
-        os.environ.get("LATITUDE") or "35.6895",
-        os.environ.get("LONGITUDE") or "139.6917",
+        lat or os.environ.get("LATITUDE") or "35.6895",
+        lon or os.environ.get("LONGITUDE") or "139.6917",
         os.environ.get("TIMEZONE") or "Asia/Tokyo",
     )
     return format_message(data, place)
@@ -149,10 +149,18 @@ def main():
     ap.add_argument("--daemon", action="store_true",
                     help="常駐して毎日指定時刻にポップアップを出す")
     ap.add_argument("--at", default="12:00", help="--daemon の表示時刻 HH:MM (default 12:00)")
+    ap.add_argument("--place", help="表示する地名 (default 東京)")
+    ap.add_argument("--lat", help="緯度")
+    ap.add_argument("--lon", help="経度")
     args = ap.parse_args()
 
+    # Windows のコンソール(cp932)で表示できない文字があっても落とさない
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+
     def once():
-        message = build_message()
+        message = build_message(args.place, args.lat, args.lon)
         print(message)
         sent = notify(message)
         if args.popup or args.daemon:

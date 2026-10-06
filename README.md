@@ -27,6 +27,21 @@
 
 GitHub Actions の cron は混雑時に数分〜数十分遅れることがあります。
 
+## Windows かんたんセットアップ
+
+1. Python 3 が無ければ: `winget install Python.Python.3.12`
+2. このリポジトリを ZIP ダウンロードまたは `git clone` して、フォルダで PowerShell を開く
+3. 実行:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install_windows.ps1
+# 東京以外なら
+powershell -ExecutionPolicy Bypass -File .\install_windows.ps1 -Place 大阪 -Lat 34.6937 -Lon 135.5023
+```
+
+天気取得の確認 → ログイン時の自動起動登録 → 今すぐ常駐開始、までを行います。
+解除は `-Uninstall`。すぐ表示を試すなら `python weather_notify.py --popup`。
+
 ## 画面にポップアップを出す（PC常駐モード）
 
 定刻になると、PCの画面に自動でポップアップが出ます。スマホ等への通知（上記）とは別で、併用できます。
